@@ -63,10 +63,14 @@ int main(int argc, char const *argv[])
 
             }else if(command_type[0] == 'p'){
                 dir.dump_caches();
-            }else if(command_type[0] == 'h'){
-                
-            }else if(command_type[0] == 'v'){
 
+            }else if(command_type[0] == 'h'){
+
+                double hit_rate = dir.hit_rate();
+                cout << "Current hit rate: " << hit_rate << endl;
+
+            }else if(command_type[0] == 'v'){
+                dir.toggle_commentry();
             }else{
                 cerr << "malformed line\n";
             }
