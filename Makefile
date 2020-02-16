@@ -1,13 +1,14 @@
 PROG=coherence_sim
-SRC=coherence_sim.cpp
-DEPS=coherence_sim.h
+SRC_DIR=src
+SRC=$(SRC_DIR)/coherence_sim.cpp
+DEPS=$(SRC_DIR)/coherence_sim.h
 CC=g++
 CFLAGS= -g -Wall -Wextra
 
 default : $(PROG)
 
 $(PROG): $(SRC) $(DEPS)
-	$(CC) $(CFLAGS) $(SRC) -o ../$(PROG)
+	$(CC) $(CFLAGS) $(SRC) -o $(PROG)
 
 .PHONY : clean
 

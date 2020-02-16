@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <assert.h>
 
 using std::ifstream;
 using std::cout;
@@ -24,7 +25,7 @@ int main(int argc, char const *argv[])
 
     string proc;
     string operation;
-    string mem_addr;
+    unsigned int mem_addr;
 
     Directory dir = Directory();
 
@@ -48,15 +49,20 @@ int main(int argc, char const *argv[])
                 
                 proc = command_type;
                 trace >> operation;
-                trace >> mem_addr;
+                trace >> mem_addr; // geting as unsigned integer
 
                 // debug
-                cout << "proc: " << proc << ", op: " << operation << ", mem_addr: " << mem_addr << endl;
+
+                // get processor as int
+                unsigned int proc_num = proc[1] - 48; // 48 is zero in ascii
+
+                cout << "proc: " << proc_num << ", op: " << operation << ", mem_addr: " << mem_addr << endl;
+
                 // use the read values to c
-                dir.update();
+                dir.update(proc_num, mem_addr, operation);
 
             }else if(command_type[0] == 'p'){
-
+                dir.dump_caches();
             }else if(command_type[0] == 'h'){
                 
             }else if(command_type[0] == 'v'){
