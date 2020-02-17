@@ -19,6 +19,10 @@ using std::string;
 #define NUM_PROCS 4
 #define MAX(x,y) (x < y ? y : x)
 
+// ensure code works 
+
+// implement the miss in local cache in other processors events
+
 enum cache_state {
     I=0,S,M
 };
@@ -67,12 +71,12 @@ class Directory{
     // don't know how large memory is or how long address are yet (probably 64bits or 32bit)
     unordered_map<unsigned int, dir_entry> dir_entries;
 
-    statistic stats;
+    
     bool commentry = false; // used for turning on commentry
     
 public: 
     Directory() {}
-
+    statistic stats;
     //
     bool is_all_false(bool vec[], int n){
         bool all = false;
@@ -121,9 +125,11 @@ public:
     // what order to deal with the state and operation type 
     void update(int processor, unsigned int address, string operation){
 
+        unsigned int cache_line_address = address >> 2;
+
         // if not in dir map add to map 
-        if(dir_entries.find(address) == dir_entries.end()){
-            dir_entries[address];
+        if(dir_entries.find(cache_line_address) == dir_entries.end()){
+            dir_entries[cache_line_address];
         }
 
         // calculate tag and index, (offset is 2 bits as there are 4 word to a cache line)
@@ -157,6 +163,8 @@ public:
                 
                 stats.private_latency += 1/* cache probe*/ + 1 /* cache read or write access*/;
 
+                // write in modified state stay in modified state
+
             }else if( operation == "W" && lcache_entry.state == cache_state::S){
                  
                 stats.private_latency += 1; // prob cache
@@ -169,10 +177,10 @@ public:
 
                 int hops = 0;
                 for(int i = 0; i < NUM_PROCS; i++){
-                    if( i != processor && dir_entries[address].shared_vec[i] == true){
-                        dir_entries[address].shared_vec[i] = false; // directory
+                    if( i != processor && dir_entries[cache_line_address].shared_vec[i] == true){
+                        dir_entries[cache_line_address].shared_vec[i] = false; // directory
                         caches[i][index].state = cache_state::I; // change cache state for ones sharing value
-                        
+
                         stats.invalidations_sent++;
 
                         // if one of them is in modified do we have to have a write back
@@ -187,11 +195,12 @@ public:
                 stats.private_latency += hops*3; // invalidate messages returning
 
                 // update directory state ? 
-                dir_entries[address].state = dir_state::Modified/*modified*/;
+                dir_entries[cache_line_address].state = dir_state::Modified/*modified*/;
                 // ensure sharing vector is correct
+                dir_entries[cache_line_address].shared_vec[processor] = true; // not need as should be already false
                 // don't need to update tag here
             }
-        }else if( false && dir_entries[address].state != dir_state::Invalid){ // if not in cache, ask directory if other procs have its
+        }else if( false && dir_entries[cache_line_address].state != dir_state::Invalid){ // if not in cache, ask directory if other procs have its
             cout << "Hit in other Processor" << endl;
             stats.remote_accesses++;
 
@@ -223,18 +232,16 @@ public:
                     cout << "replaced block " << endl;
                 }
 
-                //rebuild address
-                unsigned int old_address = ((lcache_entry.tag << 9) | index) << 2;
+                // get old address that is being replaced 
+                unsigned int old_cache_addr = (lcache_entry.tag << 9) | index;
+
+                // un share the cache line
+                dir_entries[old_cache_addr].shared_vec[processor] = false;
 
                 // directory update sharing of vec of removed address
-                for (int i = 0; i < 4; i++){
-                    dir_entries[old_address + i].shared_vec[processor] = false;
-                    // have to update directory state here if all are false thens set invalid
-
-                    bool not_shared = is_all_false(dir_entries[old_address+i].shared_vec,4); 
-                    if(not_shared){ // if address was only cached in the process make invalid
-                        dir_entries[old_address+i].state = dir_state::Invalid;
-                    }
+                bool not_shared = is_all_false(dir_entries[old_cache_addr].shared_vec, 4); 
+                if(not_shared){ // if address was only cached of processor make invalid
+                    dir_entries[old_cache_addr].state = dir_state::Invalid;
                 }
             }
 
@@ -242,11 +249,13 @@ public:
             caches[processor][index].tag = tag;
             if(operation == "R"){
                 caches[processor][index].state = cache_state::S;
-                dir_entries[address].state = dir_state::Cached;
+                dir_entries[cache_line_address].state = dir_state::Cached;
             }else{
                 caches[processor][index].state = cache_state::M;
-                dir_entries[address].state = dir_state::Modified;
+                dir_entries[cache_line_address].state = dir_state::Modified;
             }
+
+            dir_entries[cache_line_address].shared_vec[processor] = true;
         }
 
 
