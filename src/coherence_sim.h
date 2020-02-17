@@ -71,9 +71,14 @@ class Directory{
     // don't know how large memory is or how long address are yet (probably 64bits or 32bit)
     unordered_map<unsigned int, dir_entry> dir_entries;
 
-    
     bool commentry = false; // used for turning on commentry
-    
+
+                                // 0  1  2  3
+    int proc_layout_dist[4][4] = {{0, 1, 2, 0},  // 0
+                                  {1, 0, 1, 2},  // 1
+                                  {2, 1, 0, 1},  // 2
+                                  {1, 2, 1, 0 }};// 3
+
 public: 
     Directory() {}
     statistic stats;
@@ -172,10 +177,9 @@ public:
                 stats.private_latency += 3; // proc tell dir to invalidate other caches
 
                 stats.private_latency += 3; // directory sends message to processors to invalidate overlap in time
-                
-                stats.private_latency += 1; // processors probe caches and invalidate
+                                            // also sends message to processor who request saying how many acks to expecy
 
-                int hops = 0;
+                int hops = 0; // stays zero if no other processor shares data
                 for(int i = 0; i < NUM_PROCS; i++){
                     if( i != processor && dir_entries[cache_line_address].shared_vec[i] == true){
                         dir_entries[cache_line_address].shared_vec[i] = false; // directory
@@ -187,8 +191,12 @@ public:
                         // no as the state is shared not modifed
 
                         // get greatest distance between processors
-                        hops = std::max(abs(processor - i), hops);
+                        hops = std::max(proc_layout_dist[processor][i] , hops); // access map of processors to get cost of jump
                     }
+                }
+
+                if(hops != 0){ // we know at least one other processor has the data
+                    stats.private_latency += 1; // processors probe caches and invalidate
                 }
                 
                 // cal longest path for acks of invalidate to return
@@ -200,7 +208,7 @@ public:
                 dir_entries[cache_line_address].shared_vec[processor] = true; // not need as should be already false
                 // don't need to update tag here
             }
-        }else if( false && dir_entries[cache_line_address].state != dir_state::Invalid){ // if not in cache, ask directory if other procs have its
+        }else if(false && dir_entries[cache_line_address].state != dir_state::Invalid){ // if not in cache, ask directory if other procs have its
             cout << "Hit in other Processor" << endl;
             stats.remote_accesses++;
 
