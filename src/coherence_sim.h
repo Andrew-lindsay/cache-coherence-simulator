@@ -13,6 +13,7 @@
 using std::vector;
 using std::unordered_map;
 using std::cout;
+using std::cerr;
 using std::endl;
 using std::string;
 
@@ -149,8 +150,8 @@ public:
 
         // ========== CHECK CACHES AND DIRECTORY ============
 
-        // move from share to modified if write occurs here
 
+        // ==================== Hit in local cache =====================================
         if(lcache_entry.tag == tag && lcache_entry.state != cache_state::I /*invalid*/){ // check local cache
             cout << "hit in local cache" << endl;
 
@@ -168,7 +169,7 @@ public:
                 
                 stats.private_latency += 1/* cache probe*/ + 1 /* cache read or write access*/;
 
-                // write in modified state stay in modified state
+                // write in modified state stay in modified state don't update anything
 
             }else if( operation == "W" && lcache_entry.state == cache_state::S){
                  
@@ -207,28 +208,143 @@ public:
                 // ensure sharing vector is correct
                 dir_entries[cache_line_address].shared_vec[processor] = true; // not need as should be already false
                 // don't need to update tag here
+            }else{
+                cerr << "ERROR: unreachable" <<  endl; 
             }
-        }else if(false && dir_entries[cache_line_address].state != dir_state::Invalid){ // if not in cache, ask directory if other procs have its
+
+        // ===================== REMOTE ACCESS ===============================
+        }else if(dir_entries[cache_line_address].state != dir_state::Invalid){ // if not in cache, ask directory if other procs have its
+            
             cout << "Hit in other Processor" << endl;
             stats.remote_accesses++;
 
-            // 
+            // other processors have cached the values
+                // what stat is remote line in need to check tag ensure correct? use directory
 
+            if(operation == "R"){ // either remote processors in modifed or shared
 
+                stats.remote_latency += 1; //probing local cache for tag
+
+                stats.remote_latency += 3; // send message to directory to req data 
+
+                stats.remote_latency += 3; // directory asks nearest proc to send data
+
+                stats.remote_latency += 1;  // nearest proc prob cache
+
+                stats.remote_latency += 1; // nearest proc accesses cache to get data
+
+                // find CLOSTEST processor that has the data 
+                int hops = 3; // stays zero if no other processor shares data#
+                int remote_proc = 0;
+                for(int i = 0; i < NUM_PROCS; i++){
+                    if(i != processor && dir_entries[cache_line_address].shared_vec[i] == true){
+                        int dist = proc_layout_dist[processor][i];
+                        if( dist < hops){
+                            hops = dist;
+                            remote_proc=i;
+                        }
+                    }
+                }
+                // hops should never be left at 3 
+                if(hops == 3){cerr << "ERROR: should have at least one sharer" << endl;}
+
+                stats.remote_latency += hops*3; // send data to processor that requested 
+
+                stats.remote_latency += 1; // processor reads data from cache
+
+                // updated sharing list
+                dir_entries[cache_line_address].shared_vec[processor] = true;
+
+                // replace block if cache line is valid
+                if(lcache_entry.tag != tag && lcache_entry.state != cache_state::I){
+
+                    cout << "BLOCK CLASH" << endl;
+
+                    // write back to memory
+                    if(lcache_entry.state == cache_state::M){
+                        stats.replacement_writebacks++;
+                        cout << "replaced block " << endl;
+                    }
+
+                    // get old address that is being replaced 
+                    unsigned int old_cache_addr = (lcache_entry.tag << 9) | index;
+
+                    // un share the cache line
+                    dir_entries[old_cache_addr].shared_vec[processor] = false;
+
+                    // directory update sharing of vec of removed address
+                    bool not_shared = is_all_false(dir_entries[old_cache_addr].shared_vec, 4); 
+                    if(not_shared){ // if address was only cached of processor make invalid
+                        dir_entries[old_cache_addr].state = dir_state::Invalid;
+                    }
+                }
+                
+                // update local cache values
+                caches[processor][index].state = cache_state::S;
+                caches[processor][index].tag = tag;
+
+                // if(dir_entries[cache_line_address].state == dir_state::Cached){
+                
+                if(dir_entries[cache_line_address].state == dir_state::Modified) {
+                    // change to shared
+                    caches[remote_proc][index].state = cache_state::S; // modifed goes to shared
+                    dir_entries[cache_line_address].state = dir_state::Cached;
+
+                    stats.coherence_writebacks++; // remote block in Modified state and a readmiss occurs
+                }
+
+            }else if(operation == "W"){
+
+                stats.remote_latency += 1; //probing local cache for tag
+
+                stats.remote_latency += 3; // send message to directory to req data 
+
+                stats.remote_latency += 3; // send message to closest processor with data to forward data and invalidate
+                                           // other processors get invalidate messages here 
+                                           // processor gets number of invalidates to receive as well
+                stats.remote_latency += 1; // proc with data probe cache for data
+                                           // other proc in validate
+
+                // send invalidate acks
+                int hops = 0; // stays zero if no other processor shares data
+                for(int i = 0; i < NUM_PROCS; i++){
+                    if( i != processor && dir_entries[cache_line_address].shared_vec[i] == true){
+                        dir_entries[cache_line_address].shared_vec[i] = false; // directory
+                        caches[i][index].state = cache_state::I; // change cache state for ones sharing value
+
+                        stats.invalidations_sent++;
+
+                        // if one of them is in modified do we have to have a write back
+                        // no as the state is shared not modifed
+
+                        // get greatest distance between processors
+                        hops = std::max(proc_layout_dist[processor][i] , hops); // access map of processors to get cost of jump
+                    }
+                }
+
+                stats.remote_latency += hops*3;
+
+                // request data and say to invalidate the other copies
+
+                // 
+
+            }
+
+            // if operation is a write request 
+
+            // update sharing info if cacheline in processor is valid but tags do not match
+
+        // ========================== Off Chip access ================================
         }else{ // have to access main memory
             cout << "Going to memory " << endl;
             stats.off_chip_accesses++;
-
-            stats.off_chip_latency += 1; // probe 
-
+            stats.off_chip_latency += 1; // probing local cache for tag and check state
             stats.off_chip_latency += 3; // request to dir to see if other
-
             stats.off_chip_latency += 10; // 10 cycles to go get data from memory
-
             stats.off_chip_latency += 3; // send data to processor
-
             stats.off_chip_latency += 1; // write data to local cache
 
+            // ==== REPLACING OLD CACHE BLOCK ====
             // this should incurr a write back fee if block is not invalid
             if(lcache_entry.tag != tag && lcache_entry.state != cache_state::I){
 
@@ -265,22 +381,6 @@ public:
 
             dir_entries[cache_line_address].shared_vec[processor] = true;
         }
-
-
-        // if not in cache, ask directory if other procs have its
-
-            // if no procs have it (pentially for memory access)
-                // change state for line in processor
-                // change state for line in directory
-
-                // was cache block being replaced valid
-            
-                // other cache has line 
-
-        // is in cache of processor
-            // check state if 
-
-        // 
 
         // int x = caches[0][0].tag;
         // printf("tag: %d\n", x);
