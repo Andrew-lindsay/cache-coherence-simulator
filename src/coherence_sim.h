@@ -127,6 +127,13 @@ public:
     // what order to deal with the state and operation type 
     void update(int processor, unsigned int address, string operation){
 
+        if(commentry){
+            cout << "a " <<  ( operation == "R" ? "read" : "write") 
+                    << " to processor " << processor 
+                    <<  " to word " << address << endl;
+        }
+
+
         unsigned int cache_line_address = address >> 2;
 
         // if not in dir map add to map 
@@ -317,14 +324,16 @@ public:
                         stats.invalidations_sent++;
 
                         // get greatest distance between processors
-                        hops_max = std::max(proc_layout_dist[processor][i] , hops_max); // access map of processors to get cost of jump
+                        hops_max = std::max(proc_layout_dist[processor][i], hops_max); // access map of processors to get cost of jump
                         hops_min = std::min(proc_layout_dist[processor][i], hops_min);
                     }
                 }  
 
+                if(hops_max == 3 || hops_min == 0){cerr << "ERROR: must have at least one sharer" << endl;}
+
                 stats.remote_latency += 1; // read data from cache to give to remote proc
 
-                // longer invalide ack route hides the read to cache to get data for user
+                // longer invalidate ack route hides the read to cache to get data for user
                 if(hops_min < hops_max){
                     stats.remote_latency -= 1; 
                 }
@@ -333,9 +342,46 @@ public:
 
                 stats.remote_latency += 1; // processor req data writes data to cache
 
-
                 // TODO: need to handle local cache replacement and all state information for new cache line
-                
+
+                // replace block if cache line is valid
+                if(lcache_entry.tag != tag && lcache_entry.state != cache_state::I){
+
+                    cout << "BLOCK CLASH" << endl;
+
+                    // write back to memory
+                    if(lcache_entry.state == cache_state::M){
+                        stats.replacement_writebacks++;
+                        cout << "replaced block " << endl;
+                    }
+
+                    // get old address that is being replaced 
+                    unsigned int old_cache_addr = (lcache_entry.tag << 9) | index;
+
+                    // un share the cache line
+                    dir_entries[old_cache_addr].shared_vec[processor] = false;
+
+                    // directory update sharing of vec of removed address
+                    bool not_shared = is_all_false(dir_entries[old_cache_addr].shared_vec, 4); 
+                    if(not_shared){ // if address was only cached of processor make invalid
+                        dir_entries[old_cache_addr].state = dir_state::Invalid;
+                    }
+                }
+
+                // update local cache state
+                caches[processor][index].state = cache_state::M;
+                caches[processor][index].tag = tag;
+
+                // update directory
+                dir_entries[cache_line_address].shared_vec[processor] = true;
+
+                // if directory is already in modified state then we want to write back and set to modified for this processor
+                if(dir_entries[cache_line_address].state == dir_state::Modified) {
+                    // change to shared
+                    stats.coherence_writebacks++; // remote block in Modified state and a readmiss occurs
+                }else{ // if shared set to modified as write has been performed
+                    dir_entries[cache_line_address].state = dir_state::Modified;
+                }
             }
 
             // if operation is a write request 
