@@ -20,10 +20,6 @@ using std::string;
 #define NUM_PROCS 4
 #define MAX(x,y) (x < y ? y : x)
 
-// ensure code works 
-
-// implement the miss in local cache in other processors events
-
 enum cache_state {
     I=0,S,M
 };
@@ -302,32 +298,44 @@ public:
                 stats.remote_latency += 3; // send message to closest processor with data to forward data and invalidate
                                            // other processors get invalidate messages here 
                                            // processor gets number of invalidates to receive as well
-                stats.remote_latency += 1; // proc with data probe cache for data
-                                           // other proc in validate
+
+                stats.remote_latency += 1; // proc with data probe cache and tag
+                                           // other proc invalidate
 
                 // send invalidate acks
-                int hops = 0; // stays zero if no other processor shares data
+                int hops_max = 0; // stays zero if no other processor shares data
+                int hops_min = 3; // should never be 3 
                 for(int i = 0; i < NUM_PROCS; i++){
                     if( i != processor && dir_entries[cache_line_address].shared_vec[i] == true){
                         dir_entries[cache_line_address].shared_vec[i] = false; // directory
+
+                        if(caches[i][index].state == cache_state::M){
+                            stats.coherence_writebacks++; // if in modified state and write occurs writeback triggered
+                        }
                         caches[i][index].state = cache_state::I; // change cache state for ones sharing value
 
                         stats.invalidations_sent++;
 
-                        // if one of them is in modified do we have to have a write back
-                        // no as the state is shared not modifed
-
                         // get greatest distance between processors
-                        hops = std::max(proc_layout_dist[processor][i] , hops); // access map of processors to get cost of jump
+                        hops_max = std::max(proc_layout_dist[processor][i] , hops_max); // access map of processors to get cost of jump
+                        hops_min = std::min(proc_layout_dist[processor][i], hops_min);
                     }
+                }  
+
+                stats.remote_latency += 1; // read data from cache to give to remote proc
+
+                // longer invalide ack route hides the read to cache to get data for user
+                if(hops_min < hops_max){
+                    stats.remote_latency -= 1; 
                 }
 
-                stats.remote_latency += hops*3;
+                stats.remote_latency += hops_max*3; // send acks and data to requesting processor
 
-                // request data and say to invalidate the other copies
+                stats.remote_latency += 1; // processor req data writes data to cache
 
-                // 
 
+                // TODO: need to handle local cache replacement and all state information for new cache line
+                
             }
 
             // if operation is a write request 
@@ -359,7 +367,7 @@ public:
                 // get old address that is being replaced 
                 unsigned int old_cache_addr = (lcache_entry.tag << 9) | index;
 
-                // un share the cache line
+                // unshare the cache line
                 dir_entries[old_cache_addr].shared_vec[processor] = false;
 
                 // directory update sharing of vec of removed address
