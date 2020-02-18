@@ -115,9 +115,6 @@ int main(int argc, char const *argv[])
         cout << "File finished" << endl;
         trace.close();
 
-        
-
-
         // printing results 
         if(true){
             unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);

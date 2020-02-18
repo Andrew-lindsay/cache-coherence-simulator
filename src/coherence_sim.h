@@ -71,7 +71,7 @@ class Directory{
     bool commentry = false; // used for turning on commentry
 
                                 // 0  1  2  3
-    int proc_layout_dist[4][4] = {{0, 1, 2, 0},  // 0
+    int proc_layout_dist[4][4] = {{0, 1, 2, 1},  // 0
                                   {1, 0, 1, 2},  // 1
                                   {2, 1, 0, 1},  // 2
                                   {1, 2, 1, 0 }};// 3
@@ -124,15 +124,21 @@ public:
         return (static_cast<double>(stats.private_accesses)) / total;
     }
 
+
+    void print_commentry(int processor, unsigned int address, string operation){
+        cout << "a " <<  ( operation == "R" ? "read" : "write") 
+        << " to processor " << processor 
+        <<  " to word " << address << endl;
+    }
+
     // what order to deal with the state and operation type 
     void update(int processor, unsigned int address, string operation){
-
+        // “A read by processor P2 to word 17 looked for tag 0 in cache-line/block 2, was found in state Invalid (cache miss)
+        //  in this cache and found in state Modified in the cache of P1.”
+        
         if(commentry){
-            cout << "a " <<  ( operation == "R" ? "read" : "write") 
-                    << " to processor " << processor 
-                    <<  " to word " << address << endl;
+            print_commentry(processor, address, operation);
         }
-
 
         unsigned int cache_line_address = address >> 2;
 
@@ -237,19 +243,19 @@ public:
                 stats.remote_latency += 1; // nearest proc accesses cache to get data
 
                 // find CLOSTEST processor that has the data 
-                int hops = 3; // stays zero if no other processor shares data#
+                int hops = 3; // stays at 3 if no other processor shares data#
                 int remote_proc = 0;
                 for(int i = 0; i < NUM_PROCS; i++){
                     if(i != processor && dir_entries[cache_line_address].shared_vec[i] == true){
                         int dist = proc_layout_dist[processor][i];
                         if( dist < hops){
                             hops = dist;
-                            remote_proc=i;
+                            remote_proc=i; // 
                         }
                     }
                 }
                 // hops should never be left at 3 
-                if(hops == 3){cerr << "ERROR: should have at least one sharer" << endl;}
+                if(hops == 3){cerr << "ERROR on remote read: should have at least one sharer" << endl;}
 
                 stats.remote_latency += hops*3; // send data to processor that requested 
 
@@ -310,7 +316,7 @@ public:
                                            // other proc invalidate
 
                 // send invalidate acks
-                int hops_max = 0; // stays zero if no other processor shares data
+                int hops_max = 0; // should never stay zero we have sharers if we have reached here
                 int hops_min = 3; // should never be 3 
                 for(int i = 0; i < NUM_PROCS; i++){
                     if( i != processor && dir_entries[cache_line_address].shared_vec[i] == true){
@@ -329,7 +335,9 @@ public:
                     }
                 }  
 
-                if(hops_max == 3 || hops_min == 0){cerr << "ERROR: must have at least one sharer" << endl;}
+                if(hops_max == 0 || hops_min == 3){
+                    cout << "ERROR on remote write:  must have at least one sharer" << endl;
+                }
 
                 stats.remote_latency += 1; // read data from cache to give to remote proc
 
