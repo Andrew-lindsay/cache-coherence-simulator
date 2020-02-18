@@ -26,7 +26,7 @@ void result_to_file(Directory dir, string file_name){
     output_file << "Private-accesses: " << dir.stats.private_accesses << endl;
     output_file << "Remote-accesses: " << dir.stats.remote_accesses << endl;
     output_file << "Off-chip-accesses: " << dir.stats.off_chip_accesses << endl;
-    output_file << "Total accesses: " << total_accesses << endl;
+    output_file << "Total-accesses: " << total_accesses << endl;
     output_file << "Replacement-writebacks: " << dir.stats.replacement_writebacks << endl;
     output_file << "Coherence-writebacks: " << dir.stats.coherence_writebacks << endl;
     output_file << "Invalidations-sent: " << dir.stats.invalidations_sent << endl;
@@ -36,7 +36,7 @@ void result_to_file(Directory dir, string file_name){
     output_file << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << endl;
     output_file << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << endl;
     output_file << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << endl;
-    output_file << "Total latency: " << total_latency;
+    output_file << "Total-latency: " << total_latency;
 
     output_file.close();
 
@@ -123,7 +123,7 @@ int main(int argc, char const *argv[])
             cout << "Private-accesses: " << dir.stats.private_accesses << endl;
             cout << "Remote-accesses: " << dir.stats.remote_accesses << endl;
             cout << "Off-chip-accesses: " << dir.stats.off_chip_accesses << endl;
-            cout << "Total accesses: " << total_accesses << endl;
+            cout << "Total-accesses: " << total_accesses << endl;
             cout << "Replacement-writebacks: " << dir.stats.replacement_writebacks << endl;
             cout << "Coherence-writebacks: " << dir.stats.coherence_writebacks << endl;
             cout << "Invalidations-sent: " << dir.stats.invalidations_sent << endl;
@@ -133,8 +133,11 @@ int main(int argc, char const *argv[])
             cout << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << endl;
             cout << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << endl;
             cout << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << endl;
-            cout << "Total latency: " << total_latency << endl;
-            cout << "Total Blocks replaced locally: " << dir.stats.block_replacement << endl;
+            cout << "Total-latency: " << total_latency << endl;
+            cout << "Private-latency: " << dir.stats.private_latency << endl;
+            cout << "Remote-latency: " << dir.stats.remote_latency << endl;
+            cout << "Off-chip-latency: " << dir.stats.off_chip_latency << endl;
+            cout << "Total-Blocks-replaced-locally: " << dir.stats.block_replacement << endl;
         }
 
         // write results to file

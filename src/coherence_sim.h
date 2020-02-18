@@ -284,8 +284,11 @@ public:
 
                 // update directory state ? 
                 dir_entries[cache_line_address].state = dir_state::Modified/*modified*/;
+                caches[processor][index].state = cache_state::M;
+
                 // ensure sharing vector is correct
                 dir_entries[cache_line_address].shared_vec[processor] = true; // not need as should be already false
+                
                 // don't need to update tag here
             }else{
                 cerr << "ERROR: unreachable" <<  endl; 
