@@ -92,7 +92,7 @@ int main(int argc, char const *argv[])
                     return -1;
                 }
 
-                cout << "proc: " << proc_num << ", op: " << operation << ", mem_addr: " << mem_addr << endl;
+                //cout << "proc: " << proc_num << ", op: " << operation << ", mem_addr: " << mem_addr << endl;
 
                 // use the read values to c
                 dir.update(proc_num, mem_addr, operation);
@@ -112,7 +112,7 @@ int main(int argc, char const *argv[])
             }
         }
 
-        cout << "File finished" << endl;
+        // cout << "File finished" << endl;
         trace.close();
 
         // printing results 
@@ -133,14 +133,15 @@ int main(int argc, char const *argv[])
             cout << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << endl;
             cout << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << endl;
             cout << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << endl;
-            cout << "Total latency: " << total_latency;
+            cout << "Total latency: " << total_latency << endl;
+            cout << "Total Blocks replaced locally: " << dir.stats.block_replacement << endl;
         }
 
         // write results to file
         result_to_file(dir, file.substr(0, file.length() - 4));
 
     }else{
-        cout << "File failed to open" << endl;
+        cerr << "File failed to open" << endl;
         return -1;
     }
 

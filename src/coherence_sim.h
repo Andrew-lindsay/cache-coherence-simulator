@@ -57,6 +57,7 @@ struct statistic{
     unsigned int private_latency        = 0;
     unsigned int remote_latency         = 0;
     unsigned int off_chip_latency       = 0;
+    unsigned int block_replacement      = 0;
     // unsigned int private_latency_ops;
     // unsigned int remote_latency_ops;
     // unsigned int offchip_latency_ops;
@@ -100,14 +101,16 @@ public:
         for (int i = 0; i < 4; i++){
             cout << "P" << i << endl;
             for (int j = 0; j < 512; j++){
-                cout << j <<  " " << caches[i][j].tag << " "; 
-                unsigned int cState = caches[i][j].state;
-                if(cState == cache_state::I){
-                    cout << "I" << endl;
-                }else if(cState == cache_state::S){
-                    cout << "S" << endl;
-                }else{
-                    cout << "M" << endl;
+                if(caches[i][j].tag != -1){
+                    cout << j <<  " " << caches[i][j].tag << " "; 
+                    unsigned int cState = caches[i][j].state;
+                    if(cState == cache_state::I){
+                        cout << "I" << endl;
+                    }else if(cState == cache_state::S){
+                        cout << "S" << endl;
+                    }else{
+                        cout << "M" << endl;
+                    }
                 }
             }
         }
@@ -152,19 +155,21 @@ public:
         // replace block if cache line is valid
         if(lcache_entry.tag != tag && lcache_entry.state != cache_state::I){
 
-            cout << "BLOCK CLASH" << endl;
-
+            // cout << "BLOCK CLASH" << endl;
+            stats.block_replacement++;
+            
             if(commentry){
-                output_message += ", local cache block replaced ";
+                output_message += ", local cache block at index " + to_string(index) + " with tag " + to_string(lcache_entry.tag) + " replaced";
             }
 
             // write back to memory
             if(lcache_entry.state == cache_state::M){
                 stats.replacement_writebacks++;
-                cout << "replaced block " << endl;
+
+                //cout << "replaced block " << endl;
                 
                 if(commentry){
-                    output_message += "(block write-back to memory).";
+                    output_message += " (block written back to memory).";
                 }
             }
 
@@ -205,7 +210,8 @@ public:
         unsigned int tag  = address >> 11; // 2 bits offset + 9 bits index (bit shift away 11 bits to be left with the tag)
 
         // DEBUG
-        cout << "tag: " << tag << " index: " << index << endl;
+        // cout << "tag: " << tag << " index: " << index << endl;
+
         assert(index < 512);
 
         cache_entry lcache_entry = caches[processor][index];
@@ -216,13 +222,12 @@ public:
             output_message += " looked for tag " + std::to_string(tag) + " in cache block " + to_string(index);
         }
 
-
         // ==================== Hit in local cache =====================================
         if(lcache_entry.tag == tag && lcache_entry.state != cache_state::I /*invalid*/){ // check local cache
-            cout << "hit in local cache" << endl;
+            //cout << "hit in local cache" << endl;
 
             if(commentry){
-                output_message += " found in state " + state_to_string(lcache_entry.state);
+                output_message += " found in state " + state_to_string(lcache_entry.state) + " (cache hit)"; 
             }
 
             stats.private_accesses++; //private accesses as in local cache
@@ -289,7 +294,8 @@ public:
         // ===================== REMOTE ACCESS ===============================
         }else if(dir_entries[cache_line_address].state != dir_state::Invalid){ // if not in cache, ask directory if other procs have its
             
-            cout << "Hit in other Processor" << endl;
+            //cout << "Hit in other Processor" << endl;
+            
             stats.remote_accesses++;
 
             if(commentry){
@@ -376,8 +382,8 @@ public:
                         dir_entries[cache_line_address].shared_vec[i] = false; // directory
 
                         if(commentry){
-                            output_message += "and found in state " + state_to_string(caches[i][index].state) 
-                                + "cache of P" + to_string(i);
+                            output_message += " and found in state " + state_to_string(caches[i][index].state) 
+                                + " cache of P" + to_string(i) + ",";
                         }
 
                         if(caches[i][index].state == cache_state::M){
@@ -435,10 +441,10 @@ public:
 
         // ========================== Off Chip access ================================
         }else{ // have to access main memory
-            cout << "Going to memory " << endl;
+            // cout << "Going to memory " << endl;
 
             if(commentry){
-                output_message += ", recieved data from main memory";
+                output_message += ", not in local cache recieved data from main memory";
             }
 
             stats.off_chip_accesses++;
