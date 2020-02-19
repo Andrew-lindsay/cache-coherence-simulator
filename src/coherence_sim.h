@@ -67,6 +67,7 @@ struct statistic{
 class Directory{
     // vector<vector<cache_entry>> caches;
     // Directory(): caches(4, vector<cache_entry>(512, cache_entry())) {}
+    
     cache_entry caches[4][512]; // hold cache tags and state for each line (all 4 processors)
 
     // don't know how large memory is or how long address are yet (probably 64bits or 32bit)
@@ -82,8 +83,12 @@ class Directory{
 
     string output_message;
 
+    bool optimised = true;
+
 public: 
-    Directory() {}
+    Directory(){}
+    Directory(bool opt): optimised(opt){}
+
     statistic stats;
     //
     bool is_all_false(bool vec[], int n){
@@ -174,7 +179,12 @@ public:
             }
 
             // get old address that is being replaced 
-            unsigned int old_cache_addr = (lcache_entry.tag << 9) | index;
+            unsigned int old_cache_addr;
+            if(optimised){
+                old_cache_addr = (lcache_entry.tag << 8) | index; // 8 bit index in optimised
+            }else{
+                old_cache_addr = (lcache_entry.tag << 9) | index;
+            }
 
             // un share the cache line
             dir_entries[old_cache_addr].shared_vec[processor] = false;
@@ -198,16 +208,30 @@ public:
                 +  " to word " + std::to_string(address);
         }
 
-        unsigned int cache_line_address = address >> 2;
+        unsigned int cache_line_address;
+        if(optimised){
+            cache_line_address = address >> 3; // 3 bit offset 8 words per block
+        }else{
+            cache_line_address = address >> 2; // 2 bit offset 4 words per block
+        }
 
         // if not in dir map add to map 
         if(dir_entries.find(cache_line_address) == dir_entries.end()){
             dir_entries[cache_line_address];
         }
 
-        // calculate tag and index, (offset is 2 bits as there are 4 word to a cache line)
-        unsigned int index = (address >> 2) & 511; // 0x1ff
-        unsigned int tag  = address >> 11; // 2 bits offset + 9 bits index (bit shift away 11 bits to be left with the tag)
+        unsigned int index;
+        unsigned int tag;
+
+        if(optimised){
+            // calculate tag and index, (offset is 2 bits as there are 4 word to a cache line)
+            index = (address >> 3) & 255; // 0x1ff
+            tag  = address >> 11; // 2 bits offset + 9 bits index (bit shift away 11 bits to be left with the tag)
+        }else{
+                        // calculate tag and index, (offset is 3 bits as there are 8 word to a cache line)
+            index = (address >> 2) & 511; // 0x1ff
+            tag  = address >> 11;
+        }
 
         // DEBUG
         // cout << "tag: " << tag << " index: " << index << endl;
@@ -246,8 +270,7 @@ public:
 
                 // write in modified state stay in modified state don't update anything
 
-            }else if( operation == "W" && lcache_entry.state == cache_state::S){
-                 
+            }else if( operation == "W" && lcache_entry.state == cache_state::S){ // 11 or 14 if in exclusive state this does not need to call directory
                 stats.private_latency += 1; // prob cache
 
                 stats.private_latency += 3; // proc tell dir to invalidate other caches

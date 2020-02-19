@@ -47,7 +47,7 @@ int main(int argc, char const *argv[])
     /* code */
     string file;
     ifstream trace;
-    std::string line;
+    string line;
     
     string command_type;
 
@@ -55,15 +55,25 @@ int main(int argc, char const *argv[])
     string operation;
     unsigned int mem_addr;
 
-    Directory dir = Directory();
+    bool optimised = false;
 
     //  get trace to run from command line
-    if(argc >= 2){
+    if(argc == 2){
         file = argv[1];
+    }else if(argc > 2){
+        file = argv[1];
+        if(string(argv[2]) == "-O"){
+            optimised = true;
+        }else{
+            cerr << "ERROR: was expecting optimised arg got " << argv[2] << endl;
+            return -1;
+        }
     }else{
         cout << "please provide a trace file\n";
         return -1;
     }
+
+    Directory dir = Directory(optimised);
 
     // read input from file
     trace.open(file);
@@ -108,7 +118,7 @@ int main(int argc, char const *argv[])
             }else if(command_type[0] == 'v'){
                 dir.toggle_commentry();
             }else{
-                cerr << "malformed line" << endl;
+                cerr << "ERROR: Malformed line" << endl;
             }
         }
 
