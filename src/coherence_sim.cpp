@@ -104,7 +104,7 @@ int main(int argc, char const *argv[])
 
                 //cout << "proc: " << proc_num << ", op: " << operation << ", mem_addr: " << mem_addr << endl;
 
-                // use the read values to c
+                // send parameters to directory to simulate caches
                 dir.update(proc_num, mem_addr, operation);
 
             }else if(command_type[0] == 'p'){
@@ -126,7 +126,7 @@ int main(int argc, char const *argv[])
         trace.close();
 
         // printing results 
-        if(true){
+        if(false){
             unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
             unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
 
