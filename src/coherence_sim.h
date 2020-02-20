@@ -58,6 +58,7 @@ struct statistic{
     unsigned int remote_latency         = 0;
     unsigned int off_chip_latency       = 0;
     unsigned int block_replacement      = 0;
+    unsigned int local_write_shared_state = 0;
     // unsigned int private_latency_ops;
     // unsigned int remote_latency_ops;
     // unsigned int offchip_latency_ops;
@@ -67,7 +68,7 @@ struct statistic{
 class Directory{
     // vector<vector<cache_entry>> caches;
     // Directory(): caches(4, vector<cache_entry>(512, cache_entry())) {}
-    
+
     cache_entry caches[4][512]; // hold cache tags and state for each line (all 4 processors)
 
     // don't know how large memory is or how long address are yet (probably 64bits or 32bit)
@@ -136,7 +137,6 @@ public:
             + stats.off_chip_accesses + stats.private_accesses; 
         return (static_cast<double>(stats.private_accesses)) / total;
     }
-
 
     void print_commentry(int processor, unsigned int address, string operation){
         cout << "a " <<  ( operation == "R" ? "read" : "write") 
@@ -254,28 +254,32 @@ public:
                 output_message += " found in state " + state_to_string(lcache_entry.state) + " (cache hit)"; 
             }
 
-            stats.private_accesses++; //private accesses as in local cache
-
-            // combinations of operation and cache line state
-
             // check if read or write operation ?
-            if( operation == "R" && (lcache_entry.state == cache_state::S || lcache_entry.state == cache_state::M) ){
-                
+            if( operation == "R" && (lcache_entry.state == cache_state::S || lcache_entry.state == cache_state::M) ){ // add MESI state check here
+                stats.private_accesses++; //private accesses as in local cache
+
                 // don't have to update state of local line or directory
                 stats.private_latency += 1/* cache probe*/ + 1 /* cache read or write access*/;
 
-            }else if(operation == "W"  && lcache_entry.state == cache_state::M){
-                
+            }else if(operation == "W"  && lcache_entry.state == cache_state::M){ 
+
+                stats.private_accesses++; //private accesses as in local cache
+
                 stats.private_latency += 1/* cache probe*/ + 1 /* cache read or write access*/;
 
                 // write in modified state stay in modified state don't update anything
 
             }else if( operation == "W" && lcache_entry.state == cache_state::S){ // 11 or 14 if in exclusive state this does not need to call directory
-                stats.private_latency += 1; // prob cache
 
-                stats.private_latency += 3; // proc tell dir to invalidate other caches
+                stats.local_write_shared_state++;
 
-                stats.private_latency += 3; // directory sends message to processors to invalidate overlap in time
+                stats.remote_accesses++; //remote accesses as in local cache
+
+                stats.remote_latency += 1; // prob cache
+
+                stats.remote_latency += 3; // proc tell dir to invalidate other caches
+
+                stats.remote_latency += 3; // directory sends message to processors to invalidate overlap in time
                                             // also sends message to processor who request saying how many acks to expecy
 
                 int hops = 0; // stays zero if no other processor shares data
@@ -303,7 +307,7 @@ public:
                 }
                 
                 // cal longest path for acks of invalidate to return
-                stats.private_latency += hops*3; // invalidate messages returning
+                stats.remote_latency += hops*3; // invalidate messages returning
 
                 // update directory state ? 
                 dir_entries[cache_line_address].state = dir_state::Modified/*modified*/;
@@ -313,7 +317,7 @@ public:
                 dir_entries[cache_line_address].shared_vec[processor] = true; // not need as should be already false
                 
                 // don't need to update tag here
-            }else{
+            }else{ // ADD MESI state check here for write in Exclusive state moves to modified state silently 
                 cerr << "ERROR: unreachable" <<  endl; 
             }
 
@@ -379,7 +383,7 @@ public:
 
                 // if(dir_entries[cache_line_address].state == dir_state::Cached){
                 
-                if(dir_entries[cache_line_address].state == dir_state::Modified) {
+                if(dir_entries[cache_line_address].state == dir_state::Modified) { // add MESI state check here as well 
                     // change to shared
                     caches[remote_proc][index].state = cache_state::S; // modifed goes to shared
                     dir_entries[cache_line_address].state = dir_state::Cached;
@@ -412,10 +416,12 @@ public:
                                 + " cache of P" + to_string(i) + ",";
                         }
 
-                        if(caches[i][index].state == cache_state::M){
+                        if(caches[i][index].state == cache_state::M){ 
 
                             stats.coherence_writebacks++; // if in modified state and write occurs writeback triggered
                         }
+
+                        // sets Invalid for Exclusive state as well
                         caches[i][index].state = cache_state::I; // change cache state for ones sharing value
 
                         stats.invalidations_sent++;
@@ -424,7 +430,7 @@ public:
                         hops_max = std::max(proc_layout_dist[processor][i], hops_max); // access map of processors to get cost of jump
                         hops_min = std::min(proc_layout_dist[processor][i], hops_min);
                     }
-                }  
+                }
 
                 if(hops_max == 0 || hops_min == 3){
                     cerr << "ERROR on remote write:  must have at least one sharer" << endl;
@@ -453,9 +459,12 @@ public:
                 dir_entries[cache_line_address].shared_vec[processor] = true;
 
                 // if directory is already in modified state then we want to write back and set to modified for this processor
-                if(dir_entries[cache_line_address].state == dir_state::Modified) {
+                if(dir_entries[cache_line_address].state == dir_state::Modified) { // add MESI check here
                     // change to shared
-                    stats.coherence_writebacks++; // remote block in Modified state and a readmiss occurs
+                    // FIX ME already counted in loop i think
+
+                    //stats.coherence_writebacks++; 
+                    // remote block in Modified state and a readmiss occurs (already counted)
                 }else{ // if shared set to modified as write has been performed
                     dir_entries[cache_line_address].state = dir_state::Modified;
                 }
@@ -492,6 +501,8 @@ public:
             if(operation == "R"){
                 caches[processor][index].state = cache_state::S;
                 dir_entries[cache_line_address].state = dir_state::Cached;
+                // IF optimisation enabled then on read move to Exclusive state not
+                // caches[processor][index].state = cache_state::E;
             }else{
                 caches[processor][index].state = cache_state::M;
                 dir_entries[cache_line_address].state = dir_state::Modified;

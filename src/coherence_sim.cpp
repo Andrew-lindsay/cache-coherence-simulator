@@ -126,7 +126,7 @@ int main(int argc, char const *argv[])
         trace.close();
 
         // printing results 
-        if(false){
+        if(true){
             unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
             unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
 
@@ -148,6 +148,7 @@ int main(int argc, char const *argv[])
             cout << "Remote-latency: " << dir.stats.remote_latency << endl;
             cout << "Off-chip-latency: " << dir.stats.off_chip_latency << endl;
             cout << "Total-Blocks-replaced-locally: " << dir.stats.block_replacement << endl;
+            cout << "Local-write-shared-state: " << dir.stats.local_write_shared_state << endl;
         }
 
         // write results to file
