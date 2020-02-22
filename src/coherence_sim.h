@@ -59,6 +59,9 @@ struct statistic{
     unsigned int off_chip_latency       = 0;
     unsigned int block_replacement      = 0;
     unsigned int local_write_shared_state = 0;
+    unsigned int remote_reads_to_invalid_state = 0;
+    unsigned int remote_writes_to_invalid_state = 0;
+    unsigned int single_sharer_write = 0;
     // unsigned int private_latency_ops;
     // unsigned int remote_latency_ops;
     // unsigned int offchip_latency_ops;
@@ -84,7 +87,9 @@ class Directory{
 
     string output_message;
 
-    bool optimised = true;
+    bool optimised = false;
+
+    bool optimised_mesi = false;
 
 public: 
     Directory(){}
@@ -152,6 +157,22 @@ public:
             case cache_state::M : state_c = "Modified"; break;
         }
         return state_c;
+    }
+
+
+    bool only_sharer(bool vec[], int n, int proc){
+        bool no_sharers = true;
+        for (int i = 0; i < n; i++){
+            if(i != proc){
+                no_sharers = no_sharers && (vec[i] == false);
+            }
+        }
+
+        if(vec[proc] == false){
+            cerr << "ERROR share vector should be populated" << endl; 
+        }
+        
+        return no_sharers;
     }
 
 
@@ -270,8 +291,13 @@ public:
                 // write in modified state stay in modified state don't update anything
 
             }else if( operation == "W" && lcache_entry.state == cache_state::S){ // 11 or 14 if in exclusive state this does not need to call directory
+                // if no sharers reduce latency ? 
 
                 stats.local_write_shared_state++;
+
+                if( only_sharer(dir_entries[cache_line_address].shared_vec, 4, processor)){
+                    stats.single_sharer_write++;
+                }
 
                 stats.remote_accesses++; //remote accesses as in local cache
 
@@ -303,7 +329,7 @@ public:
                 }
 
                 if(hops != 0){ // we know at least one other processor has the data
-                    stats.private_latency += 1; // processors probe caches and invalidate
+                    stats.remote_latency += 1; // processors probe caches and invalidate
                 }
                 
                 // cal longest path for acks of invalidate to return
@@ -336,6 +362,8 @@ public:
                 // what stat is remote line in need to check tag ensure correct? use directory
 
             if(operation == "R"){ // either remote processors in modifed or shared
+
+                stats.remote_reads_to_invalid_state++;
 
                 stats.remote_latency += 1; //probing local cache for tag
 
@@ -392,6 +420,8 @@ public:
                 }
 
             }else if(operation == "W"){
+
+                stats.remote_writes_to_invalid_state++;
 
                 stats.remote_latency += 1; //probing local cache for tag
 
@@ -465,6 +495,7 @@ public:
 
                     //stats.coherence_writebacks++; 
                     // remote block in Modified state and a readmiss occurs (already counted)
+
                 }else{ // if shared set to modified as write has been performed
                     dir_entries[cache_line_address].state = dir_state::Modified;
                 }
@@ -518,9 +549,6 @@ public:
         //reset output message
         output_message.clear();
     }
-
-
-
 };
 
 #endif

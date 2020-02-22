@@ -65,7 +65,7 @@ int main(int argc, char const *argv[])
         if(string(argv[2]) == "-O"){
             optimised = true;
         }else{
-            cerr << "ERROR: was expecting optimised arg got " << argv[2] << endl;
+            cerr << "ERROR: was expecting optimised arg -O got " << argv[2] << endl;
             return -1;
         }
     }else{
@@ -89,8 +89,6 @@ int main(int argc, char const *argv[])
                 trace >> operation;
                 trace >> mem_addr; // geting as unsigned integer
 
-                // debug
-
                 // get processor as int
                 unsigned int proc_num = proc[1] - 48; // 48 is zero in ascii
 
@@ -102,6 +100,7 @@ int main(int argc, char const *argv[])
                     return -1;
                 }
 
+                // debug
                 //cout << "proc: " << proc_num << ", op: " << operation << ", mem_addr: " << mem_addr << endl;
 
                 // send parameters to directory to simulate caches
@@ -125,7 +124,7 @@ int main(int argc, char const *argv[])
         // cout << "File finished" << endl;
         trace.close();
 
-        // printing results 
+        // printing results to terminal long with additional statics    
         if(true){
             unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
             unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
@@ -149,6 +148,9 @@ int main(int argc, char const *argv[])
             cout << "Off-chip-latency: " << dir.stats.off_chip_latency << endl;
             cout << "Total-Blocks-replaced-locally: " << dir.stats.block_replacement << endl;
             cout << "Local-write-shared-state: " << dir.stats.local_write_shared_state << endl;
+            cout << "Remote_writes_to_invalid_state: " << dir.stats.remote_writes_to_invalid_state << endl;
+            cout << "Remote_reads_to_invalid_state: " << dir.stats.remote_reads_to_invalid_state << endl;
+            cout << "Single-sharer-write-to-share: " << dir.stats.single_sharer_write << endl;
         }
 
         // write results to file
