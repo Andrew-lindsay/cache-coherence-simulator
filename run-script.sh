@@ -12,7 +12,6 @@ if [ "$#" -eq 0 ]; then
     echo "Please at least provide a file name!"
     help_output
 elif [ "$#" -eq 1 ]; then
-    echo "Just file"
     FILE_ARG=$1
 elif [ "$#" -eq 2 ]; then
     FILE_ARG=$1
@@ -30,5 +29,5 @@ fi
 # ==== Compile program ====
 make
 
-echo "RUNNING: ./coherence_sim $FILE_ARG $OPTIMISE"
+# echo "RUNNING: ./coherence_sim $FILE_ARG $OPTIMISE"
 ./coherence_sim $FILE_ARG $OPTIMISE

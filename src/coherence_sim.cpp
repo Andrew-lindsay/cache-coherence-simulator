@@ -18,28 +18,32 @@ void result_to_file(Directory dir, string file_name){
 
     ofstream output_file;
 
-    output_file.open("out_" + file_name + ".txt");
+    output_file.open("out_" + file_name);
+    // cout << "out_" + file_name << endl;
 
-    unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
-    unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
+    if(output_file.is_open()){
+        unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
+        unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
 
-    output_file << "Private-accesses: " << dir.stats.private_accesses << "\n";
-    output_file << "Remote-accesses: " << dir.stats.remote_accesses << "\n";
-    output_file << "Off-chip-accesses: " << dir.stats.off_chip_accesses << "\n";
-    output_file << "Total-accesses: " << total_accesses << "\n";
-    output_file << "Replacement-writebacks: " << dir.stats.replacement_writebacks << "\n";
-    output_file << "Coherence-writebacks: " << dir.stats.coherence_writebacks << "\n";
-    output_file << "Invalidations-sent: " << dir.stats.invalidations_sent << "\n";
-    output_file << "Average-latency: " << 
-        (total_latency/ static_cast<double>(total_accesses))
-        << "\n";
-    output_file << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << "\n";
-    output_file << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << "\n";
-    output_file << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << "\n";
-    output_file << "Total-latency: " << total_latency << endl;
+        output_file << "Private-accesses: " << dir.stats.private_accesses << "\n";
+        output_file << "Remote-accesses: " << dir.stats.remote_accesses << "\n";
+        output_file << "Off-chip-accesses: " << dir.stats.off_chip_accesses << "\n";
+        output_file << "Total-accesses: " << total_accesses << "\n";
+        output_file << "Replacement-writebacks: " << dir.stats.replacement_writebacks << "\n";
+        output_file << "Coherence-writebacks: " << dir.stats.coherence_writebacks << "\n";
+        output_file << "Invalidations-sent: " << dir.stats.invalidations_sent << "\n";
+        output_file << "Average-latency: " << 
+            (total_latency/ static_cast<double>(total_accesses))
+            << "\n";
+        output_file << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << "\n";
+        output_file << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << "\n";
+        output_file << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << "\n";
+        output_file << "Total-latency: " << total_latency << endl;
 
-    output_file.close();
-
+        output_file.close();
+    }else{
+        cerr << "ERROR: Failed to open output file." << endl;
+    }
 }
 
 int main(int argc, char const *argv[])
@@ -125,7 +129,7 @@ int main(int argc, char const *argv[])
         trace.close();
 
         // printing results to terminal long with additional statics    
-        if(true){
+        if(false){
             unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
             unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
 
@@ -154,7 +158,7 @@ int main(int argc, char const *argv[])
         }
 
         // write results to file
-        result_to_file(dir, file.substr(0, file.length() - 4));
+        result_to_file(dir, file.substr(file.find_last_of("/") + 1));
 
     }else{
         cerr << "File failed to open" << endl;

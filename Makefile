@@ -3,7 +3,7 @@ SRC_DIR=src
 SRC=$(SRC_DIR)/coherence_sim.cpp
 DEPS=$(SRC_DIR)/coherence_sim.h
 CC=g++
-CFLAGS= -g -Wall -Wextra
+CFLAGS= -g -Wall -Wextra -std=c++11
 
 default : $(PROG)
 
