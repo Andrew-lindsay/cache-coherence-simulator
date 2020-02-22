@@ -23,20 +23,20 @@ void result_to_file(Directory dir, string file_name){
     unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
     unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
 
-    output_file << "Private-accesses: " << dir.stats.private_accesses << endl;
-    output_file << "Remote-accesses: " << dir.stats.remote_accesses << endl;
-    output_file << "Off-chip-accesses: " << dir.stats.off_chip_accesses << endl;
-    output_file << "Total-accesses: " << total_accesses << endl;
-    output_file << "Replacement-writebacks: " << dir.stats.replacement_writebacks << endl;
-    output_file << "Coherence-writebacks: " << dir.stats.coherence_writebacks << endl;
-    output_file << "Invalidations-sent: " << dir.stats.invalidations_sent << endl;
+    output_file << "Private-accesses: " << dir.stats.private_accesses << "\n";
+    output_file << "Remote-accesses: " << dir.stats.remote_accesses << "\n";
+    output_file << "Off-chip-accesses: " << dir.stats.off_chip_accesses << "\n";
+    output_file << "Total-accesses: " << total_accesses << "\n";
+    output_file << "Replacement-writebacks: " << dir.stats.replacement_writebacks << "\n";
+    output_file << "Coherence-writebacks: " << dir.stats.coherence_writebacks << "\n";
+    output_file << "Invalidations-sent: " << dir.stats.invalidations_sent << "\n";
     output_file << "Average-latency: " << 
         (total_latency/ static_cast<double>(total_accesses))
-        << endl;
-    output_file << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << endl;
-    output_file << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << endl;
-    output_file << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << endl;
-    output_file << "Total-latency: " << total_latency;
+        << "\n";
+    output_file << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << "\n";
+    output_file << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << "\n";
+    output_file << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << "\n";
+    output_file << "Total-latency: " << total_latency << endl;
 
     output_file.close();
 
@@ -129,27 +129,27 @@ int main(int argc, char const *argv[])
             unsigned long total_accesses = (dir.stats.private_accesses +  dir.stats.remote_accesses + dir.stats.off_chip_accesses);
             unsigned long total_latency = (dir.stats.off_chip_latency + dir.stats.remote_latency + dir.stats.private_latency);
 
-            cout << "Private-accesses: " << dir.stats.private_accesses << endl;
-            cout << "Remote-accesses: " << dir.stats.remote_accesses << endl;
-            cout << "Off-chip-accesses: " << dir.stats.off_chip_accesses << endl;
+            cout << "Private-accesses: " << dir.stats.private_accesses << "\n";
+            cout << "Remote-accesses: " << dir.stats.remote_accesses << "\n";
+            cout << "Off-chip-accesses: " << dir.stats.off_chip_accesses << "\n";
             cout << "Total-accesses: " << total_accesses << endl;
-            cout << "Replacement-writebacks: " << dir.stats.replacement_writebacks << endl;
-            cout << "Coherence-writebacks: " << dir.stats.coherence_writebacks << endl;
-            cout << "Invalidations-sent: " << dir.stats.invalidations_sent << endl;
+            cout << "Replacement-writebacks: " << dir.stats.replacement_writebacks << "\n";
+            cout << "Coherence-writebacks: " << dir.stats.coherence_writebacks << "\n";
+            cout << "Invalidations-sent: " << dir.stats.invalidations_sent << "\n";
             cout << "Average-latency: " << 
                 (total_latency/ static_cast<double>(total_accesses))
-                << endl;
-            cout << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << endl;
-            cout << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << endl;
-            cout << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << endl;
-            cout << "Total-latency: " << total_latency << endl;
-            cout << "Private-latency: " << dir.stats.private_latency << endl;
-            cout << "Remote-latency: " << dir.stats.remote_latency << endl;
-            cout << "Off-chip-latency: " << dir.stats.off_chip_latency << endl;
-            cout << "Total-Blocks-replaced-locally: " << dir.stats.block_replacement << endl;
-            cout << "Local-write-shared-state: " << dir.stats.local_write_shared_state << endl;
-            cout << "Remote_writes_to_invalid_state: " << dir.stats.remote_writes_to_invalid_state << endl;
-            cout << "Remote_reads_to_invalid_state: " << dir.stats.remote_reads_to_invalid_state << endl;
+                << "\n";
+            cout << "Priv-average-latency: " << dir.stats.private_latency/static_cast<double>(dir.stats.private_accesses) << "\n";
+            cout << "Rem-average-latency:  " << dir.stats.remote_latency/static_cast<double>(dir.stats.remote_accesses) << "\n";
+            cout << "Off-chip-average-latency: " << dir.stats.off_chip_latency/static_cast<double>(dir.stats.off_chip_accesses) << "\n";
+            cout << "Total-latency: " << total_latency << "\n";
+            cout << "Private-latency: " << dir.stats.private_latency << "\n";
+            cout << "Remote-latency: " << dir.stats.remote_latency << "\n";
+            cout << "Off-chip-latency: " << dir.stats.off_chip_latency << "\n";
+            cout << "Total-Blocks-replaced-locally: " << dir.stats.block_replacement << "\n";
+            cout << "Local-write-shared-state: " << dir.stats.local_write_shared_state << "\n";
+            cout << "Remote_writes_to_invalid_state: " << dir.stats.remote_writes_to_invalid_state << "\n";
+            cout << "Remote_reads_to_invalid_state: " << dir.stats.remote_reads_to_invalid_state << "\n";
             cout << "Single-sharer-write-to-share: " << dir.stats.single_sharer_write << endl;
         }
 

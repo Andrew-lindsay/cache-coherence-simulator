@@ -24,7 +24,10 @@ using std::to_string;
 #define MAX(x,y) (x < y ? y : x)
 
 enum cache_state {
-    I=0,S,M
+    I=0,
+    S,
+    M,
+    E
 };
 
 enum dir_state{
@@ -93,10 +96,11 @@ class Directory{
 
 public: 
     Directory(){}
-    Directory(bool opt): optimised(opt){}
+    Directory(bool opt): optimised_mesi(opt){}
 
     statistic stats;
-    //
+    
+
     bool is_all_false(bool vec[], int n){
         bool all = false;
         for(int i = 0; i < n; i++){
@@ -119,6 +123,8 @@ public:
                         cout << "I" << endl;
                     }else if(cState == cache_state::S){
                         cout << "S" << endl;
+                    }else if(cState == cache_state::E){
+                        cout << "E" << endl;
                     }else{
                         cout << "M" << endl;
                     }
@@ -152,9 +158,10 @@ public:
     string state_to_string(cache_state block_state){
         string state_c;
         switch (block_state){
-            case cache_state::I : state_c = "Invalid";  break;
-            case cache_state::S : state_c = "Shared";   break;
-            case cache_state::M : state_c = "Modified"; break;
+            case cache_state::I : state_c = "Invalid";   break;
+            case cache_state::S : state_c = "Shared";    break;
+            case cache_state::M : state_c = "Modified";  break;
+            case cache_state::E : state_c = "Exclusive"; break;
         }
         return state_c;
     }
@@ -276,7 +283,7 @@ public:
             }
 
             // check if read or write operation ?
-            if( operation == "R" && (lcache_entry.state == cache_state::S || lcache_entry.state == cache_state::M) ){ // add MESI state check here
+            if( operation == "R" && (lcache_entry.state == cache_state::S || lcache_entry.state == cache_state::M || lcache_entry.state == cache_state::E) ){ // add MESI state check here
                 stats.private_accesses++; //private accesses as in local cache
 
                 // don't have to update state of local line or directory
@@ -296,8 +303,8 @@ public:
                 stats.local_write_shared_state++;
 
                 if( only_sharer(dir_entries[cache_line_address].shared_vec, 4, processor)){
-                    stats.single_sharer_write++;
-                }
+                    stats.single_sharer_write++; // will be zero when optimisation enabled
+                } 
 
                 stats.remote_accesses++; //remote accesses as in local cache
 
@@ -336,6 +343,9 @@ public:
                 stats.remote_latency += hops*3; // invalidate messages returning
 
                 // update directory state ? 
+
+                stats.remote_latency += 1; //Write data to the local cache
+
                 dir_entries[cache_line_address].state = dir_state::Modified/*modified*/;
                 caches[processor][index].state = cache_state::M;
 
@@ -343,6 +353,20 @@ public:
                 dir_entries[cache_line_address].shared_vec[processor] = true; // not need as should be already false
                 
                 // don't need to update tag here
+            }else if(operation == "W" && lcache_entry.state == cache_state::E){
+
+                stats.remote_accesses++;
+
+                stats.remote_latency += 1; // prob cache
+
+                stats.remote_latency += 3; // proc tell dir to update state from cached to modified
+
+                // stats.remote_latency += 1 // write data to cache overlaps
+
+                dir_entries[cache_line_address].state = dir_state::Modified/*modified*/;
+                caches[processor][index].state = cache_state::M;
+
+
             }else{ // ADD MESI state check here for write in Exclusive state moves to modified state silently 
                 cerr << "ERROR: unreachable" <<  endl; 
             }
@@ -408,16 +432,16 @@ public:
                 // update local cache values
                 caches[processor][index].state = cache_state::S;
                 caches[processor][index].tag = tag;
-
-                // if(dir_entries[cache_line_address].state == dir_state::Cached){
                 
                 if(dir_entries[cache_line_address].state == dir_state::Modified) { // add MESI state check here as well 
+                                                                                   // not needed as on write moves to modified state
                     // change to shared
-                    caches[remote_proc][index].state = cache_state::S; // modifed goes to shared
-                    dir_entries[cache_line_address].state = dir_state::Cached;
-
                     stats.coherence_writebacks++; // remote block in Modified state and a readmiss occurs
                 }
+
+                // ensures if cache is in exclusive state it moves to shared on remote read miss
+                caches[remote_proc][index].state = cache_state::S; // modifed goes to shared
+                dir_entries[cache_line_address].state = dir_state::Cached;
 
             }else if(operation == "W"){
 
@@ -453,7 +477,7 @@ public:
 
                         // sets Invalid for Exclusive state as well
                         caches[i][index].state = cache_state::I; // change cache state for ones sharing value
-
+                                                                 // invalidates
                         stats.invalidations_sent++;
 
                         // get greatest distance between processors
@@ -534,6 +558,9 @@ public:
                 dir_entries[cache_line_address].state = dir_state::Cached;
                 // IF optimisation enabled then on read move to Exclusive state not
                 // caches[processor][index].state = cache_state::E;
+                if(optimised_mesi){
+                    caches[processor][index].state = cache_state::E;
+                }
             }else{
                 caches[processor][index].state = cache_state::M;
                 dir_entries[cache_line_address].state = dir_state::Modified;
